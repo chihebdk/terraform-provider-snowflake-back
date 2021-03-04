@@ -3,6 +3,8 @@ package resources
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/chanzuckerberg/terraform-provider-snowflake/pkg/snowflake"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -50,7 +52,7 @@ var storageIntegrationSchema = map[string]*schema.Schema{
 	"storage_provider": {
 		Type:         schema.TypeString,
 		Required:     true,
-		ValidateFunc: validation.StringInSlice([]string{"S3", "GCS", "AZURE"}, true),
+		ValidateFunc: validation.StringInSlice([]string{"S3", "GCS", "AZURE"}, false),
 	},
 	"storage_aws_external_id": {
 		Type:        schema.TypeString,
@@ -129,7 +131,6 @@ func CreateStorageIntegration(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId(name)
 
-	//return err
 	return ReadStorageIntegration(d, meta)
 }
 
@@ -145,7 +146,7 @@ func ReadStorageIntegration(d *schema.ResourceData, meta interface{}) error {
 
 	s, err := snowflake.ScanStorageIntegration(row)
 	if err != nil {
-		return fmt.Errorf("Could not show storage integration %w", err)
+		return fmt.Errorf("Could not show storage integration: %w", err)
 	}
 
 	// Note: category must be STORAGE or something is broken
@@ -157,9 +158,9 @@ func ReadStorageIntegration(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	// if err := d.Set("type", s.IntegrationType.String); err != nil {
-	// 	return err
-	// }
+	if err := d.Set("type", s.IntegrationType.String); err != nil {
+		return err
+	}
 
 	if err := d.Set("created_on", s.CreatedOn.String); err != nil {
 		return err
@@ -168,8 +169,6 @@ func ReadStorageIntegration(d *schema.ResourceData, meta interface{}) error {
 	if err := d.Set("enabled", s.Enabled.Bool); err != nil {
 		return err
 	}
-
-	// --- THE block below must change validation only , see stage.go
 
 	// Some properties come from the DESCRIBE INTEGRATION call
 	// We need to grab them in a loop
@@ -185,38 +184,38 @@ func ReadStorageIntegration(d *schema.ResourceData, meta interface{}) error {
 		if err := rows.Scan(&k, &pType, &v, &unused); err != nil {
 			return err
 		}
-		// 	switch k {
-		// 	case "ENABLED":
-		// 		// We set this using the SHOW INTEGRATION call so let's ignore it here
-		// 	case "STORAGE_PROVIDER":
-		// 		if err = d.Set("storage_provider", v.(string)); err != nil {
-		// 			return err
-		// 		}
-		// 	case "STORAGE_ALLOWED_LOCATIONS":
-		// 		if err = d.Set("storage_allowed_locations", strings.Split(v.(string), ",")); err != nil {
-		// 			return err
-		// 		}
-		// 	case "STORAGE_BLOCKED_LOCATIONS":
-		// 		if val := v.(string); val != "" {
-		// 			if err = d.Set("storage_blocked_locations", strings.Split(val, ",")); err != nil {
-		// 				return err
-		// 			}
-		// 		}
-		// 	case "STORAGE_AWS_IAM_USER_ARN":
-		// 		if err = d.Set("storage_aws_iam_user_arn", v.(string)); err != nil {
-		// 			return err
-		// 		}
-		// 	case "STORAGE_AWS_ROLE_ARN":
-		// 		if err = d.Set("storage_aws_role_arn", v.(string)); err != nil {
-		// 			return err
-		// 		}
-		// 	case "STORAGE_AWS_EXTERNAL_ID":
-		// 		if err = d.Set("storage_aws_external_id", v.(string)); err != nil {
-		// 			return err
-		// 		}
-		// 	default:
-		// 		log.Printf("[WARN] unexpected property %v returned from Snowflake", k)
-		// 	}
+		switch k {
+		case "ENABLED":
+			// We set this using the SHOW INTEGRATION call so let's ignore it here
+		case "STORAGE_PROVIDER":
+			if err = d.Set("storage_provider", v.(string)); err != nil {
+				return err
+			}
+		case "STORAGE_ALLOWED_LOCATIONS":
+			if err = d.Set("storage_allowed_locations", strings.Split(v.(string), ",")); err != nil {
+				return err
+			}
+		case "STORAGE_BLOCKED_LOCATIONS":
+			if val := v.(string); val != "" {
+				if err = d.Set("storage_blocked_locations", strings.Split(val, ",")); err != nil {
+					return err
+				}
+			}
+		case "STORAGE_AWS_IAM_USER_ARN":
+			if err = d.Set("storage_aws_iam_user_arn", v.(string)); err != nil {
+				return err
+			}
+		case "STORAGE_AWS_ROLE_ARN":
+			if err = d.Set("storage_aws_role_arn", v.(string)); err != nil {
+				return err
+			}
+		case "STORAGE_AWS_EXTERNAL_ID":
+			if err = d.Set("storage_aws_external_id", v.(string)); err != nil {
+				return err
+			}
+		default:
+			log.Printf("[WARN] unexpected property %v returned from Snowflake", k)
+		}
 	}
 
 	return err
@@ -319,24 +318,18 @@ func setStorageProviderSettings(data *schema.ResourceData, stmt snowflake.Settin
 	stmt.SetString("STORAGE_PROVIDER", storageProvider)
 
 	switch storageProvider {
-	case "s3":
-		fallthrough
 	case "S3":
 		v, ok := data.GetOk("storage_aws_role_arn")
 		if !ok {
 			return fmt.Errorf("If you use the S3 storage provider you must specify a storage_aws_role_arn")
 		}
 		stmt.SetString(`STORAGE_AWS_ROLE_ARN`, v.(string))
-	case "azure":
-		fallthrough
 	case "AZURE":
 		v, ok := data.GetOk("azure_tenant_id")
 		if !ok {
 			return fmt.Errorf("If you use the Azure storage provider you must specify an azure_tenant_id")
 		}
 		stmt.SetString(`AZURE_TENANT_ID`, v.(string))
-	case "gcs":
-		fallthrough
 	case "GCS":
 		// nothing to set here
 	default:
