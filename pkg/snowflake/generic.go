@@ -11,14 +11,16 @@ import (
 type EntityType string
 
 const (
-	DatabaseType           EntityType = "DATABASE"
-	ManagedAccountType     EntityType = "MANAGED ACCOUNT"
-	ResourceMonitorType    EntityType = "RESOURCE MONITOR"
-	RoleType               EntityType = "ROLE"
-	ShareType              EntityType = "SHARE"
-	StorageIntegrationType EntityType = "STORAGE INTEGRATION"
-	UserType               EntityType = "USER"
-	WarehouseType          EntityType = "WAREHOUSE"
+	DatabaseType                EntityType = "DATABASE"
+	ManagedAccountType          EntityType = "MANAGED ACCOUNT"
+	ResourceMonitorType         EntityType = "RESOURCE MONITOR"
+	RoleType                    EntityType = "ROLE"
+	ShareType                   EntityType = "SHARE"
+	StorageIntegrationType      EntityType = "STORAGE INTEGRATION"
+	NotificationIntegrationType EntityType = "NOTIFICATION INTEGRATION"
+	SecurityIntegrationType     EntityType = "SECURITY INTEGRATION"
+	UserType                    EntityType = "USER"
+	WarehouseType               EntityType = "WAREHOUSE"
 )
 
 type Builder struct {
@@ -42,7 +44,7 @@ func (b *Builder) Rename(newName string) string {
 	return fmt.Sprintf(`ALTER %s "%s" RENAME TO "%s"`, b.entityType, b.name, newName)
 }
 
-// SettingBuilder is an interface for a builder that allows you to set key value pairs
+// SettingBuilder is an interface for a builder that allows you to set key value pairs..
 type SettingBuilder interface {
 	SetString(string, string)
 	SetStringList(string, []string)
