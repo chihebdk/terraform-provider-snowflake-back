@@ -7,6 +7,8 @@ export GO111MODULE=on
 export TF_ACC_TERRAFORM_VERSION=0.12.29
 export SKIP_EXTERNAL_TABLE_TESTS=true
 
+
+
 go_test ?= -
 ifeq (, $(shell which gotest))
 	go_test=go test
@@ -70,7 +72,8 @@ release-snapshot: ## run a release
 .PHONY: release-snapshot
 
 build: ## build the binary
-	go build ${LDFLAGS} -o $(BASE_BINARY_NAME) .
+	mkdir -p build
+	go build ${LDFLAGS} -o build/$(BASE_BINARY_NAME) .
 .PHONY: build
 
 coverage: ## run the go coverage tool, reading file coverage.out
@@ -93,9 +96,11 @@ install: ## install the terraform-provider-snowflake binary in $GOPATH/bin
 	go install ${LDFLAGS} .
 .PHONY: install
 
+INSTALLTFDIR=$(HOME)/.terraform.d/plugins/registry.terraform.io/slalom/snowflake/$(VERSION)/linux_amd64
 install-tf: build ## installs plugin where terraform can find it
-	mkdir -p $(HOME)/.terraform.d/plugins
-	cp ./$(BASE_BINARY_NAME) $(HOME)/.terraform.d/plugins/$(BASE_BINARY_NAME)
+	echo $(INSTALLTFDIR)
+	mkdir -p $(INSTALLTFDIR)
+	cp ./build/$(BASE_BINARY_NAME) $(INSTALLTFDIR)/$(BASE_BINARY_NAME)
 .PHONY: install-tf
 
 uninstall-tf: build ## uninstalls plugin from where terraform can find it
